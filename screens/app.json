@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "PrepPlate",
+    "slug": "prepplate",
+    "scheme": "prepplate",
+    "platforms": ["ios", "android", "web"],
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.wyatth.PrepPlate",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "prepplate"  
+            ]
+          }
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.wyatth.PrepPlate"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "react-native-78c36"
+      },
+      "firebaseapiKey": "AIzaSyBsp41GXJchBuaPAAW_Hmr2xiQD3ptVnkE",
+      "firebaseauthDomain": "react-native-78c36.firebaseapp.com",
+      "firebaseprojectId": "react-native-78c36",
+      "firebasestorageBucket": "react-native-78c36.firebasestorage.app",
+      "firebasemessagingSenderId": "270716893577",
+      "firebaseappId": "1:270716893577:web:d82d5dff3d1dcd22bb0958",
+      "firebasemeasurementId": "G-LXCQQGWXFY"
+    },
+    "plugins": [
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "prepplate" 
+        }
+      ]
+    ]
+  }
+}

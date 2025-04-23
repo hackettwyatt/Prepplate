@@ -1,0 +1,32 @@
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allow authenticated users to read and write their own user document in the "users" collection
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow authenticated users to read and write to their own meals in the "userMeals/{userId}/meals" subcollection
+    match /userMeals/{userId}/meals/{mealId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow authenticated users to read and write to their own scheduled meals in the "userMeals/{userId}/scheduledMeals" subcollection
+    match /userMeals/{userId}/scheduledMeals/{scheduledMealId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow authenticated users to read and write their own events in the "userEvents/{userId}/events" collection
+    match /userEvents/{userId}/events/{eventId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default deny rule: Deny access to any other documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+
+

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "732159179394",
+    "project_id": "react-native-mealplanner",
+    "storage_bucket": "react-native-mealplanner.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:732159179394:android:999816cafa144685a5129b",
+        "android_client_info": {
+          "package_name": "com.wyatth.NewIdea"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZa2_NsMQ0M9g6YZ1VFE0aA1SZL1YkSTo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

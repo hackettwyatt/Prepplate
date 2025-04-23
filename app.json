@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "PrepPlate",
+    "scheme": "prepplate",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "android": {
+      "package": "com.yourcompany.PrepPlate"
+    },
+    "ios": {
+      "bundleIdentifier": "com.wyatth.Prepplate",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "owner": "wyatth",
+    "slug": "prepplate",
+    "extra": {
+      "eas": {
+        "projectId": "18975fb0-9717-4f46-a4e5-793f508f2249"
+      }
+    }
+  }
+}
