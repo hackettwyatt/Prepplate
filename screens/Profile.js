@@ -98,7 +98,6 @@ const Profile = () => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // auth‑state will swap back to Login automatically
     } catch (e) {
       alert("Error logging out: " + e.message);
     }
@@ -117,15 +116,12 @@ const Profile = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Avatar at top */}
       <View style={styles.avatarContainer}>
         <Image
           style={styles.avatar}
           source={avatar ? avatar : avatar1}
         />
       </View>
-
-      {/* Everything else is pushed down */}
       <View style={styles.body}>
         <Text style={styles.name}>{firstName} {lastName}</Text>
 
