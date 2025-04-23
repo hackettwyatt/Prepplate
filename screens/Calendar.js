@@ -92,31 +92,29 @@ const CalendarApp = () => {
       if (!currentUser) return;
       const userId = currentUser.uid;
   
-      // 1) Fetch events
+      
       const eventsSnapshot = await getDocs(
         collection(db, 'userEvents', userId, 'events')
       );
       const events = eventsSnapshot.docs
         .map(doc => {
           const data = doc.data();
-          // data.time is something like "5:30 PM"
+     
           if (!isValidDate(data.date) || !data.time) return null;
   
-          // split off the AM/PM
           const [timePart, ampm] = data.time.split(' ');
           return {
             id: doc.id,
             name: data.name,
             date: data.date,
-            time: timePart,      // e.g. "5:30"
-            ampm,                // e.g. "PM"
+            time: timePart,      
+            ampm,               
             type: 'event',
             fullDateTime: getFullDateTime(data.date, timePart, ampm)
           };
         })
         .filter(Boolean);
   
-      // 2) Fetch meals (unchanged; you already do this correctly)
       const scheduledMealsSnapshot = await getDocs(
         collection(db, 'userMeals', userId, 'scheduledMeals')
       );
@@ -128,8 +126,8 @@ const CalendarApp = () => {
             id: doc.id,
             name: data.mealName,
             date: data.date,
-            time: data.time,           // already just "HH:MM"
-            ampm: data.ampm,           // already "AM" or "PM"
+            time: data.time,           
+            ampm: data.ampm,          
             type: 'meal',
             fullDateTime: getFullDateTime(data.date, data.time, data.ampm),
             image: data.mealImage || data.mealimage || null,
@@ -138,12 +136,10 @@ const CalendarApp = () => {
         })
         .filter(Boolean);
   
-      // 3) Merge & sort
       const combined = [...events, ...meals].sort(
         (a, b) => a.fullDateTime - b.fullDateTime
       );
   
-      // 4) Build markedDates and update state…
       const newMarkedDates = {};
       combined.forEach(item => {
         if (!newMarkedDates[item.date]) {
@@ -246,7 +242,6 @@ const CalendarApp = () => {
   const addEvent = async () => {
     if (!validateInputs()) return;
   
-    // Add leading zero for single digit months (1-9)
     const formattedMonth = eventMonth < 10 ? `0${eventMonth}` : eventMonth;
   
     const eventDate = `${eventYear}-${formattedMonth}-${eventDay}`;
@@ -344,15 +339,7 @@ const styles = StyleSheet.create({
   eventsContainer: { flex: 1,},
   dateText: { fontSize: 24, fontWeight: 'bold',  marginBottom: 10,},
   navigationButtons: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10,},
-  eventCard: { flexDirection: 'column',
-     marginBottom: 15, 
-     backgroundColor: '#F4F1E3', 
-     borderRadius: 10, 
-     padding: 10, 
-     shadowColor: '#000', 
-     shadowOffset: { width: 0, height: 1 }, 
-     shadowOpacity: 0.3, 
-     shadowRadius: 2,},
+  eventCard: { flexDirection: 'column', marginBottom: 15,  backgroundColor: '#F4F1E3',  borderRadius: 10,  padding: 10,  shadowColor: '#000',  shadowOffset: { width: 0, height: 1 },  shadowOpacity: 0.3, shadowRadius: 2,},
   card: { padding: 10,},
   eventTitle: { fontSize: 18, fontWeight: 'bold',},
   eventImage: {  width: 100, height: 100, marginTop: 10,},
