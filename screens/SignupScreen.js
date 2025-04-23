@@ -1,26 +1,11 @@
 import React, { useState } from "react";
-import {
-  SafeAreaView,
-  View,
-  TextInput,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from "react-native";
+import {SafeAreaView, View, TextInput, Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView,} from "react-native";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebaseConfig";
 
 function SignupScreen({ navigation }) {
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    password: "",
-  });
+  const [form, setForm] = useState({ firstName: "",  lastName: "",  email: "",  password: "", });
 
   const [loading, setLoading] = useState(false); 
   const [error, setError] = useState(""); 
@@ -69,7 +54,6 @@ function SignupScreen({ navigation }) {
           <View style={styles.container}>
             <Text style={styles.title}>Sign Up</Text>
 
-            {/* Error Message */}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <View style={styles.input}>
