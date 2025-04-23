@@ -5,7 +5,6 @@ import { useNavigation } from '@react-navigation/native';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
-// Delay function for spacing API calls
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const Ingredients = () => {
