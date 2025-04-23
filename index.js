@@ -1,6 +1,6 @@
 import { registerRootComponent } from 'expo';
 
-import App from './App';  // Correct path if App.js is in the root directory
+import App from './App';  
 
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);
