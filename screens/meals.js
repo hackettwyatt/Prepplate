@@ -16,58 +16,97 @@ const mealNameMap = {
   'kung po chicken': 'kung pao chicken',
   'spaghetti alla carbonara': 'carbonara',
   'kung po prawns': 'kung pao shrimp',
+  'ma po tofu': 'mapo tofu',
+  'broccoli & stilton soup': 'N/A',
 };
 
+// 1) define extractNutrition first, so it’s always hoisted
+function extractNutrition(food) {
+  const fmt = v => (v === 0 ? '0.0' : v ?? 'N/A');
+  return {
+    servingQty:         fmt(food.serving_qty),
+    servingUnit:        food.serving_unit || 'g',
+    servingWeightGrams: fmt(food.serving_weight_grams),
+    calories:           fmt(food.nf_calories),
+    fat:                fmt(food.nf_total_fat),
+    carbs:              fmt(food.nf_total_carbohydrate),
+    protein:            fmt(food.nf_protein),
+    sugars:             fmt(food.nf_sugars),
+    fiber:              fmt(food.nf_dietary_fiber),
+    sodium:             fmt(food.nf_sodium),
+    cholesterol:        fmt(food.nf_cholesterol),
+  };
+}
+
 const fetchNutritionForMeal = async (mealName) => {
-  console.log('Original meal name:', mealName);
-  const normalizedMealName = mealName.toLowerCase();
-  const mapped = mealNameMap[normalizedMealName];
-  if (mapped === 'N/A') {
-    console.log(`"${mealName}" is excluded via mapping.`);
-    return null;
+  // normalize & → and, lowercase, trim
+  const original    = mealName.toLowerCase().replace(/&/g, 'and').trim();
+  const mappedName  = mealNameMap[original] || original;
+  if (mappedName === 'N/A') return null;
+
+  const searchTerm  = mappedName;           // already lowercased/normalized
+  const words       = searchTerm.split(/\s+/);
+
+  // pick logic: strict for multi-word, loose allowed only for single words
+  const strictMatch = foods => foods.find(f =>
+    words.every(w => f.food_name.toLowerCase().includes(w))
+  );
+  const looseMatch  = foods => foods[0] || null;
+  const pick        = foods =>
+    words.length > 1 ? strictMatch(foods) : (strictMatch(foods) || looseMatch(foods));
+
+  // NATURAL NUTRIENTS endpoint
+  try {
+    const { data } = await axios.post(
+      'https://trackapi.nutritionix.com/v2/natural/nutrients',
+      { query: mappedName },
+      { headers: {
+          'x-app-id': NUTRITIONX_APP_ID,
+          'x-app-key': NUTRITIONX_API_KEY,
+      }}
+    );
+    const foods = data.foods || [];
+    const match = pick(foods);
+    if (match) return extractNutrition(match);
+  } catch (e) {
+    console.warn('NL lookup failed:', e.message);
   }
 
-  const finalMealName = mapped || mealName;
-
+  // BRANDED SEARCH fallback
   try {
-    console.log('Querying Nutritionix with:', finalMealName);
-    const response = await axios.post(
-      'https://trackapi.nutritionix.com/v2/natural/nutrients',
-      { query: finalMealName },
+    const inst = await axios.get(
+      'https://trackapi.nutritionix.com/v2/search/instant',
       {
+        params: { query: mappedName },
         headers: {
           'x-app-id': NUTRITIONX_APP_ID,
           'x-app-key': NUTRITIONX_API_KEY,
         },
       }
     );
-
-    const food = response.data?.foods?.[0];
-    if (food && food.food_name.toLowerCase() === finalMealName.toLowerCase()) {
-      const formatValue = (value) => (value === 0 ? '0.0' : value ?? 'N/A');
-      console.log(`Exact match found for "${finalMealName}".`);
-      return {
-        calories: formatValue(food.nf_calories),
-        fat: formatValue(food.nf_total_fat),
-        carbs: formatValue(food.nf_total_carbohydrate),
-        protein: formatValue(food.nf_protein),
-        sugars: formatValue(food.nf_sugars),
-        fiber: formatValue(food.nf_dietary_fiber),
-        sodium: formatValue(food.nf_sodium),
-        cholesterol: formatValue(food.nf_cholesterol),
-        servingWeightGrams: formatValue(food.serving_weight_grams),
-      };
-    } else {
-      console.log(`No exact match for "${finalMealName}". Got: "${food?.food_name}"`);
+    const branded = inst.data.branded || [];
+    const best    = pick(branded);
+    if (best && best.nix_item_id) {
+      const item = await axios.get(
+        'https://trackapi.nutritionix.com/v2/search/item',
+        {
+          params: { nix_item_id: best.nix_item_id },
+          headers: {
+            'x-app-id': NUTRITIONX_APP_ID,
+            'x-app-key': NUTRITIONX_API_KEY,
+          },
+        }
+      );
+      const food = item.data.foods?.[0];
+      if (food) return extractNutrition(food);
     }
-  } catch (error) {
-    console.warn(`NutritionX lookup failed for "${finalMealName}":`, error.message);
+  } catch (e) {
+    console.warn('Branded lookup failed:', e.message);
   }
 
-  console.log('No valid nutrition data found for meal:', mealName);
+  console.log('No nutrition data found for', mealName);
   return null;
 };
-
 
 const Meals = () => {
   const navigation = useNavigation();
@@ -304,15 +343,15 @@ const Meals = () => {
               placeholder="Minute"
             />
             <View style={{ position: 'relative', width: 110, height: 50 }}>
-  <Picker
-    selectedValue={selectedAMPM}
-    style={styles.amPmPicker}
-    onValueChange={setSelectedAMPM}
-  >
-    <Picker.Item label="AM" value="AM" />
-    <Picker.Item label="PM" value="PM" />
-  </Picker>
-</View>
+             <Picker
+              selectedValue={selectedAMPM}
+               style={styles.amPmPicker}
+              onValueChange={setSelectedAMPM}
+              >
+        <Picker.Item label="AM" value="AM" />
+        <Picker.Item label="PM" value="PM" />
+        </Picker>
+        </View>
 
           </View>
         </View>
