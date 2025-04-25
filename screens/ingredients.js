@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Image, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import axios from 'axios';
 import { useNavigation } from '@react-navigation/native';
-import { getFirestore, collection, addDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, where, query, getDocs } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -17,6 +17,10 @@ const Ingredients = () => {
   const navigation = useNavigation();
   const db = getFirestore();
   const auth = getAuth();
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+
+  // ref for scrolling
+  const scrollViewRef = useRef(null);
 
   const BACKEND_URL = 'http://10.0.2.2:5000/api';
 
@@ -24,19 +28,23 @@ const Ingredients = () => {
     try {
       setLoading(true);
       const mealRequests = [];
-  
-      for (let i = 0; i < 100; i++) {
-        mealRequests.push(axios.get('https://www.themealdb.com/api/json/v1/1/random.php'));
+
+      for (let i = 0; i < 40; i++) {
+        mealRequests.push(
+          axios.get('https://www.themealdb.com/api/json/v1/1/random.php')
+        );
+
+        await delay(500);
       }
-  
+
       const responses = await Promise.all(mealRequests);
-  
+
       const mealsData = responses
         .map(response => response.data.meals[0])
         .filter(meal => meal !== undefined);
-  
+
       const uniqueMeals = Array.from(new Map(mealsData.map(meal => [meal.idMeal, meal])).values());
-  
+
       setMeals(uniqueMeals);
       setHighlightIngredients([]);
     } catch (error) {
@@ -45,19 +53,26 @@ const Ingredients = () => {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
     fetchMeals();
   }, []);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
-      fetchMeals(); 
-      setHighlightIngredients([]); 
+      fetchMeals();
+      setHighlightIngredients([]);
     } else {
       searchMeals();
     }
   }, [searchQuery]);
+  
+  // scroll to top on page change
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+  }, [currentPage]);
   
   const searchMeals = () => {
     const ingredientsArray = searchQuery
@@ -88,13 +103,13 @@ const Ingredients = () => {
   
         return { ...meal, matchCount };
       })
-      .filter(meal => meal.matchCount > 0) 
-      .sort((a, b) => b.matchCount - a.matchCount); 
+      .filter(meal => meal.matchCount > 0)
+      .sort((a, b) => b.matchCount - a.matchCount);
   
     setMeals(scoredMeals);
     setCurrentPage(1);
   };
-  
+
   const getUniqueIngredients = (meal) => {
     const ingredients = [];
     for (let i = 1; i <= 20; i++) {
@@ -107,7 +122,6 @@ const Ingredients = () => {
     }
     return ingredients;
   };
-  
 
   const saveMealToUserAccount = async (meal) => {
     const user = auth.currentUser;
@@ -115,10 +129,21 @@ const Ingredients = () => {
       console.log("User not authenticated");
       return;
     }
+
     try {
       const userMealsRef = collection(db, `userMeals/${user.uid}/meals`);
+      const q = query(userMealsRef, where("idMeal", "==", meal.idMeal));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        setConfirmationMessage("You’ve already saved this meal.");
+        setTimeout(() => setConfirmationMessage(''), 3000);
+        return;
+      }
+
       await addDoc(userMealsRef, meal);
-      console.log("Meal saved to Firestore");
+      setConfirmationMessage("Meal saved to your account!");
+      setTimeout(() => setConfirmationMessage(''), 3000);
     } catch (e) {
       console.error("Error saving meal:", e);
     }
@@ -142,14 +167,19 @@ const Ingredients = () => {
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
+      {confirmationMessage !== '' && (
+        <View style={styles.confirmationBox}>
+          <Text style={styles.confirmationText}>{confirmationMessage}</Text>
+        </View>
+      )}
 
       {loading ? (
         <Text style={styles.loadingText}>Loading...</Text>
       ) : (
-        <ScrollView style={styles.scrollView}>
+        <ScrollView ref={scrollViewRef} style={styles.scrollView}>
           {currentMeals.length > 0 ? (
-            currentMeals.map(meal => (
-              <View key={meal.idMeal} style={styles.mealCard}>
+            currentMeals.map((meal, idx) => (
+              <View key={`${meal.idMeal}-${idx}`} style={styles.mealCard}>
                 <Image source={{ uri: meal.strMealThumb }} style={styles.mealImage} />
                 <Text style={styles.mealName}>{meal.strMeal}</Text>
                 <Text style={styles.ingredientsHeader}>Ingredients:</Text>
@@ -231,6 +261,8 @@ const styles = StyleSheet.create({
   viewMealsButtonText: { color: "#fff", fontWeight: "bold" },
   goHomeButton: { backgroundColor: "#2196F3", padding: 10, borderRadius: 5, width: "48%", alignItems: "center" },
   goHomeButtonText: { color: "#fff", fontWeight: "bold" },
+  confirmationBox: { backgroundColor: '#DFF2BF', borderColor: '#4F8A10', borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 10, width: '100%' },
+  confirmationText: { color: '#4F8A10', textAlign: 'center', fontWeight: 'bold' },
 });
 
 export default Ingredients;
