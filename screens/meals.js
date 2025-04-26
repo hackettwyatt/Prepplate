@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, Text, ScrollView, Image, StyleSheet, View, TouchableOpacity, Modal, TextInput, Platform,} from 'react-native';
+import { SafeAreaView, Text, ScrollView, Image, StyleSheet, View, TouchableOpacity, Modal, TextInput, Platform,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import RNPickerSelect from 'react-native-picker-select';
 import { auth, db } from './firebaseConfig';
@@ -171,6 +172,7 @@ const Meals = () => {
       alert('Please select a date');
       return;
     }
+  
     const hourInt   = parseInt(selectedHour, 10);
     const minuteInt = parseInt(selectedMinute, 10);
     if (isNaN(hourInt) || hourInt < 1 || hourInt > 12) {
@@ -181,10 +183,11 @@ const Meals = () => {
       alert('Please enter a valid minute (0-59)');
       return;
     }
-    const time = `${selectedHour.padStart(2,'0')}:${selectedMinute.padStart(2,'0')}`;
+  
+    const time = `${selectedHour.padStart(2, '0')}:${selectedMinute.padStart(2, '0')}`;
     const user = auth.currentUser;
-    if (!user) return;
-
+    if (!user || !selectedMeal?.idMeal && !selectedMeal?.id) return;
+  
     try {
       const ref     = collection(db, 'userMeals', user.uid, 'scheduledMeals');
       const snaps   = await getDocs(ref);
@@ -192,30 +195,60 @@ const Meals = () => {
         const { date, time: t, ampm } = d.data();
         return date === selectedDate && t === time && ampm === selectedAMPM;
       });
+  
       if (exists) {
         alert('A meal is already scheduled at this time.');
         return;
       }
-
+  
+      let fullMeal = selectedMeal;
+      const mealId = selectedMeal.idMeal || selectedMeal.id;
+      if (!selectedMeal.strInstructions) {
+        const res = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${mealId}`);
+        const data = await res.json();
+        fullMeal = data.meals[0];
+      }
+  
+      const extractIngredients = (meal) => {
+        const ingredients = [];
+        for (let i = 1; i <= 20; i++) {
+          const ingredient = meal[`strIngredient${i}`];
+          const measure = meal[`strMeasure${i}`];
+          if (ingredient && ingredient.trim()) {
+            ingredients.push(`${measure?.trim() || ''} ${ingredient.trim()}`.trim());
+          }
+        }
+        return ingredients;
+      };
+  
+      const ingredients = extractIngredients(fullMeal);
+  
       await setDoc(
         doc(db, 'userMeals', user.uid, 'scheduledMeals', `${selectedDate}_${time}_${selectedAMPM}`),
         {
-          mealId:    selectedMeal.id,
-          mealImage: selectedMeal.strMealThumb,
-          mealName:  selectedMeal.strMeal,
+          mealId: fullMeal.idMeal || fullMeal.id,
+          mealImage: fullMeal.strMealThumb,
+          mealName: fullMeal.strMeal,
           time,
-          ampm:      selectedAMPM,
-          date:      selectedDate,
+          ampm: selectedAMPM,
+          date: selectedDate,
           createdAt: new Date().toISOString(),
+          strInstructions: fullMeal.strInstructions || '',
+          ingredients,
+          category: fullMeal.strCategory || '',
+          area: fullMeal.strArea || '',
+          tags: fullMeal.strTags || null,
+          youtube: fullMeal.strYoutube || null,
         }
       );
-      setScheduleModalVisible(false);
-      setSelectedDate(null);
+  
       alert('Meal scheduled successfully!');
-    } catch (e) {
-      console.error('Error scheduling meal:', e);
+    } catch (error) {
+      console.error('Error scheduling meal:', error);
+      alert('Something went wrong while scheduling the meal.');
     }
   };
+  
 
   const closeModal = () => {
     setModalVisible(false);
@@ -382,12 +415,12 @@ const Meals = () => {
                       />
 
             <View style={styles.pickerWrapper}>
-           {Platform.OS === 'ios' ? (
+            {Platform.OS === 'ios' ? (
            <RNPickerSelect
            onValueChange={setSelectedAMPM}
           items={[
-          { label: 'AM', value: 'AM' },
-          { label: 'PM', value: 'PM' }
+          { label: 'AM', value: 'AM', color: '#000' },
+          { label: 'PM', value: 'PM', color: '#000' }
            ]}
            value={selectedAMPM}
             placeholder={{}}
@@ -408,7 +441,7 @@ const Meals = () => {
       <Picker.Item label="AM" value="AM" />
       <Picker.Item label="PM" value="PM" />
     </Picker>
-  )}
+           )}
 
                       </View>
                     </View>
