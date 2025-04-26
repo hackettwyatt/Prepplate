@@ -46,7 +46,6 @@ const Profile = () => {
           });
         }
 
-        // Favorite meals
         const mealsRef  = collection(db, "userMeals", user.uid, "meals");
         const mealsSnap = await getDocs(mealsRef);
         const meals     = mealsSnap.docs.map(d => d.data().strMeal);
@@ -116,12 +115,15 @@ const Profile = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      
       <View style={styles.avatarContainer}>
         <Image
           style={styles.avatar}
           source={avatar ? avatar : avatar1}
         />
       </View>
+
+      
       <View style={styles.body}>
         <Text style={styles.name}>{firstName} {lastName}</Text>
 
@@ -163,9 +165,13 @@ const Profile = () => {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
-        <View style={styles.homeButton}>
-          <Button title="Go Home" onPress={() => navigation.navigate("Home")} />
-        </View>
+         <TouchableOpacity
+                style={styles.goHomeButton}
+                onPress={() => navigation.navigate('Home')}
+              >
+                <Text style={styles.goHomeButtonText}>Go Home</Text>
+              </TouchableOpacity>
+
       </View>
 
       {/* Edit Profile Modal */}
@@ -220,6 +226,8 @@ const styles = StyleSheet.create({
   name: { fontSize: 24, fontWeight: "bold", color: "#333", textAlign: "center", marginBottom: 10,},
   editButton: { alignSelf: "center", marginBottom: 20,          paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: "#205a35",},
   editButtonText: { color: "#fff", fontWeight: "600",},
+  goHomeButton: { backgroundColor: '#007BFF', paddingVertical: 12, borderRadius: 5, marginVertical: 10, width: '50%', alignSelf: 'center',},
+  goHomeButtonText: { color: 'white', textAlign: 'center', fontWeight: 'bold' },
   sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#333", marginTop: 20, marginBottom: 10,},
   mealBox: { width: "100%", padding: 10, backgroundColor: "#fff", borderRadius: 8, borderWidth: 1, borderColor: "#ddd", marginBottom: 20,         },
   listItem: { fontSize: 16, color: "#444", paddingVertical: 2,},
