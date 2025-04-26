@@ -19,7 +19,6 @@ const Ingredients = () => {
   const auth = getAuth();
   const [confirmationMessage, setConfirmationMessage] = useState('');
 
-  // ref for scrolling
   const scrollViewRef = useRef(null);
 
   const BACKEND_URL = 'http://10.0.2.2:5000/api';
@@ -67,7 +66,6 @@ const Ingredients = () => {
     }
   }, [searchQuery]);
   
-  // scroll to top on page change
   useEffect(() => {
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: 0, animated: true });
