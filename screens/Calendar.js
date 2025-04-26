@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, View, StyleSheet, Button, TextInput, Modal, TouchableOpacity, Text, FlatList, Image, Alert } from 'react-native';
+import { SafeAreaView, View, StyleSheet, TextInput, Modal, TouchableOpacity, Text, FlatList, Image, Alert, Platform} from 'react-native';
+import RNPickerSelect from 'react-native-picker-select';
 import { Card } from 'react-native-paper';
 import { Picker } from '@react-native-picker/picker';
 import { Calendar } from 'react-native-calendars';
@@ -7,6 +8,12 @@ import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore'
 import { db, auth } from './firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+
+const CustomButton = ({ title, onPress, style }) => (
+  <TouchableOpacity style={[styles.customButton, style]} onPress={onPress}>
+    <Text style={styles.customButtonText}>{title}</Text>
+  </TouchableOpacity>
+);
 
 const getCurrentDateISO = () => {
   const date = new Date();
@@ -18,25 +25,13 @@ const getCurrentDateISO = () => {
 
 const formatTime = (time, ampm) => {
   if (!time) return 'Time not available';
-
-  let formattedTime = time;
   if (typeof time === 'object' && time.hour != null && time.minute != null && ampm) {
-    formattedTime = `${time.hour}:${time.minute < 10 ? '0' : ''}${time.minute} ${ampm}`;
+    return `${time.hour}:${time.minute < 10 ? '0' : ''}${time.minute} ${ampm}`;
   }
   if (typeof time === 'string' && ampm) {
-    formattedTime = `${time} ${ampm}`;
+    return `${time} ${ampm}`;
   }
-
-  return formattedTime;
-};
-
-
-const formatCreatedAt = (timestamp) => {
-  if (!timestamp || !timestamp.seconds) {
-    return 'No timestamp available';
-  }
-  const date = new Date(timestamp.seconds * 1000);
-  return date.toLocaleString();
+  return time;
 };
 
 const formatDateForAgendaView = (date) => {
@@ -46,14 +41,10 @@ const formatDateForAgendaView = (date) => {
   return localDate.toLocaleDateString('en-US', options);
 };
 
-const isValidDate = (dateString) => {
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  return regex.test(dateString);
-};
+const isValidDate = (dateString) => /^\d{4}-\d{2}-\d{2}$/.test(dateString);
 
 const CalendarApp = () => {
   const navigation = useNavigation();
-
   const [items, setItems] = useState([]);
   const [markedDates, setMarkedDates] = useState({});
   const [selectedDate, setSelectedDate] = useState(getCurrentDateISO());
@@ -69,295 +60,271 @@ const CalendarApp = () => {
 
   const convertTo24HourTime = (time, ampm) => {
     let [hours, minutes] = time.split(':').map(Number);
-    if (ampm === 'PM' && hours !== 12) {
-      hours += 12; 
-    }
-    if (ampm === 'AM' && hours === 12) {
-      hours = 0;
-    }
+    if (ampm === 'PM' && hours !== 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
     return { hours, minutes };
   };
-  
+
   const getFullDateTime = (date, time, ampm) => {
     const { hours, minutes } = convertTo24HourTime(time, ampm);
-    const [year, month, day] = date.split('-').map(Number); ``
-    const fullDateTime = new Date(year, month - 1, day, hours, minutes);
-    console.log('Parsed fullDateTime:', fullDateTime);
-    return fullDateTime;
+    const [year, month, day] = date.split('-').map(Number);
+    return new Date(year, month - 1, day, hours, minutes);
   };
-  
+
   const fetchMealsAndEvents = async () => {
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
-      const userId = currentUser.uid;
-  
-      
-      const eventsSnapshot = await getDocs(
-        collection(db, 'userEvents', userId, 'events')
-      );
-      const events = eventsSnapshot.docs
-        .map(doc => {
-          const data = doc.data();
-     
-          if (!isValidDate(data.date) || !data.time) return null;
-  
-          const [timePart, ampm] = data.time.split(' ');
-          return {
-            id: doc.id,
-            name: data.name,
-            date: data.date,
-            time: timePart,      
-            ampm,               
-            type: 'event',
-            fullDateTime: getFullDateTime(data.date, timePart, ampm)
-          };
-        })
-        .filter(Boolean);
-  
-      const scheduledMealsSnapshot = await getDocs(
-        collection(db, 'userMeals', userId, 'scheduledMeals')
-      );
-      const meals = scheduledMealsSnapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          if (!isValidDate(data.date)) return null;
-          return {
-            id: doc.id,
-            name: data.mealName,
-            date: data.date,
-            time: data.time,           
-            ampm: data.ampm,          
-            type: 'meal',
-            fullDateTime: getFullDateTime(data.date, data.time, data.ampm),
-            image: data.mealImage || data.mealimage || null,
-            recipe: data.mealRecipe || ''
-          };
-        })
-        .filter(Boolean);
-  
-      const combined = [...events, ...meals].sort(
-        (a, b) => a.fullDateTime - b.fullDateTime
-      );
-  
+      const user = auth.currentUser;
+      if (!user) return;
+      const userId = user.uid;
+      const eventsSnapshot = await getDocs(collection(db, 'userEvents', userId, 'events'));
+      const events = eventsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        if (!isValidDate(data.date) || !data.time) return null;
+        const [timePart, ampm] = data.time.split(' ');
+        return {
+          id: doc.id,
+          name: data.name,
+          date: data.date,
+          time: timePart,
+          ampm,
+          type: 'event',
+          fullDateTime: getFullDateTime(data.date, timePart, ampm)
+        };
+      }).filter(Boolean);
+      const mealsSnapshot = await getDocs(collection(db, 'userMeals', userId, 'scheduledMeals'));
+      const meals = mealsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        if (!isValidDate(data.date)) return null;
+        return {
+          id: doc.id,
+          name: data.mealName,
+          date: data.date,
+          time: data.time,
+          ampm: data.ampm,
+          type: 'meal',
+          fullDateTime: getFullDateTime(data.date, data.time, data.ampm),
+          image: data.mealImage || data.mealimage || null
+        };
+      }).filter(Boolean);
+      const combined = [...events, ...meals].sort((a, b) => a.fullDateTime - b.fullDateTime);
       const newMarkedDates = {};
       combined.forEach(item => {
-        if (!newMarkedDates[item.date]) {
-          newMarkedDates[item.date] = {
-            marked: true,
-            dotColor: item.type === 'meal' ? '#50cebb' : '#ff6347'
-          };
-        }
+        newMarkedDates[item.date] = { marked: true, dotColor: item.type === 'meal' ? '#50cebb' : '#ff6347' };
       });
-  
       setItems(combined);
       setMarkedDates(newMarkedDates);
-    } catch (error) {
-      console.error('Error fetching meals and events:', error);
+    } catch (e) {
+      console.error(e);
     }
   };
-  
-  useEffect(() => {
-    fetchMealsAndEvents();
-  }, []);
-  
 
-  const getItemsForSelectedDate = () => items.filter(item => item.date === selectedDate);
+  useEffect(() => { fetchMealsAndEvents(); }, []);
+
+  const getItemsForSelectedDate = () => items.filter(i => i.date === selectedDate);
 
   const renderCards = () => (
     <FlatList
       data={getItemsForSelectedDate()}
       renderItem={({ item }) => (
         <View style={styles.eventCard}>
-          <Card style={styles.card}>
-            <Card.Content>
-              <Text style={styles.eventTitle}>{item.name}</Text>
-              <Text>{formatTime(item.time, item.ampm)}</Text>
-              {item.type === 'meal' && item.image && <Image source={{ uri: item.image }} style={styles.eventImage} />}
-            </Card.Content>
-          </Card>
+          <Card style={styles.card}><Card.Content>
+            <Text style={styles.eventTitle}>{item.name}</Text>
+            <Text>{formatTime(item.time, item.ampm)}</Text>
+            {item.type === 'meal' && item.image && <Image source={{ uri: item.image }} style={styles.eventImage} />}
+          </Card.Content></Card>
           <TouchableOpacity style={styles.removeButton} onPress={() => removeItem(item.id, item.type)}>
             <Ionicons name="close-circle" size={30} color="#FF5733" />
           </TouchableOpacity>
         </View>
       )}
-      keyExtractor={item => item.id || item.name || JSON.stringify(item.time)}
+      keyExtractor={item => item.id}
     />
   );
 
-  const removeItem = async (itemId, itemType) => {
+  const removeItem = async (id, type) => {
     try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        console.error('No authenticated user found');
-        return;
-      }
-      const userId = currentUser.uid;
-      const itemRef = itemType === 'meal'
-        ? doc(db, 'userMeals', userId, 'scheduledMeals', itemId)
-        : doc(db, 'userEvents', userId, 'events', itemId);
-
-      await deleteDoc(itemRef);
-      await fetchMealsAndEvents();
-    } catch (error) {
-      console.error(`Error removing ${itemType}:`, error);
-      Alert.alert('Error', `There was an issue removing the ${itemType}.`);
-    }
+      const user = auth.currentUser;
+      if (!user) return;
+      const ref = type === 'meal'
+        ? doc(db, 'userMeals', user.uid, 'scheduledMeals', id)
+        : doc(db, 'userEvents', user.uid, 'events', id);
+      await deleteDoc(ref);
+      fetchMealsAndEvents();
+    } catch (e) { console.error(e); Alert.alert('Error', Removing `${type}`); }
   };
 
   const switchToAgendaView = () => setIsCalendarView(false);
   const switchToCalendarView = () => setIsCalendarView(true);
 
-  const navigateAgendaView = (direction) => {
-    const [year, month, day] = selectedDate.split('-');
-    const currentDate = new Date(year, month - 1, day);
-    currentDate.setDate(currentDate.getDate() + direction);
-    const newYear = currentDate.getFullYear();
-    const newMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
-    const newDay = String(currentDate.getDate()).padStart(2, '0');
-    setSelectedDate(`${newYear}-${newMonth}-${newDay}`);
+  const navigateAgendaView = (dir) => {
+    const [y,m,d] = selectedDate.split('-').map(Number);
+    const dt = new Date(y, m-1, d);
+    dt.setDate(dt.getDate() + dir);
+    setSelectedDate(`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`);
   };
 
   const validateInputs = () => {
     if (!eventName || !eventMonth || !eventDay || !eventYear || !eventHour || !eventMinute) {
-      Alert.alert('Error', 'Please fill out all fields.');
+      Alert.alert('Error', 'Please fill in all fields.');
       return false;
     }
+  
     const month = parseInt(eventMonth, 10);
     const day = parseInt(eventDay, 10);
     const year = parseInt(eventYear, 10);
     const hour = parseInt(eventHour, 10);
     const minute = parseInt(eventMinute, 10);
-    if (isNaN(month) || month < 1 || month > 12 ||
-        isNaN(day) || day < 1 || day > 31 ||
-        isNaN(year) || year < 1000 || year > 9999 ||
-        isNaN(hour) || hour < 1 || hour > 12 ||
-        isNaN(minute) || minute < 0 || minute > 59) {
-      Alert.alert('Error', 'Please enter valid date and time values.');
+  
+    if (isNaN(month) || month < 1 || month > 12) {
+      Alert.alert('Error', 'Month must be a number between 1 and 12.');
       return false;
     }
+  
+    if (isNaN(day) || day < 1 || day > 31) {
+      Alert.alert('Error', 'Day must be a number between 1 and 31.');
+      return false;
+    }
+  
+    if (isNaN(year) || eventYear.length !== 4 || year < 1000 || year > 9999) {
+      Alert.alert('Error', 'Year must be a 4-digit number between 1000 and 9999.');
+      return false;
+    }
+  
+    if (isNaN(hour) || hour < 1 || hour > 12) {
+      Alert.alert('Error', 'Hour must be a number between 1 and 12.');
+      return false;
+    }
+  
+    if (isNaN(minute) || minute < 0 || minute > 59) {
+      Alert.alert('Error', 'Minute must be a number between 0 and 59.');
+      return false;
+    }
+  
     return true;
   };
+  
 
   const addEvent = async () => {
     if (!validateInputs()) return;
-  
-    const formattedMonth = eventMonth < 10 ? `0${eventMonth}` : eventMonth;
-  
-    const eventDate = `${eventYear}-${formattedMonth}-${eventDay}`;
-    const eventTime = `${eventHour}:${eventMinute} ${eventAMPM}`;
-    const currentUser = auth.currentUser;
-    if (!currentUser) return;
-    const userId = currentUser.uid;
+    const date = `${eventYear}-${String(eventMonth).padStart(2,'0')}`-`${String(eventDay).padStart(2,'0')}`;
+    const time = `${eventHour}:${eventMinute} ${eventAMPM}`;
     try {
-      await addDoc(collection(db, 'userEvents', userId, 'events'), {
-        name: eventName,
-        date: eventDate,
-        time: eventTime,
-        createdAt: new Date(),
-      });
+      await addDoc(collection(db,'userEvents',auth.currentUser.uid,'events'),{name:eventName,date,time,createdAt:new Date()});
       setModalVisible(false);
-      setEventName('');
-      setEventMonth('');
-      setEventDay('');
-      setEventYear('');
-      setEventHour('');
-      setEventMinute('');
+      [setEventName,setEventMonth,setEventDay,setEventYear,setEventHour,setEventMinute].forEach(fn=>fn(''));
       setEventAMPM('AM');
       fetchMealsAndEvents();
-    } catch (error) {
-      console.error('Error adding event:', error);
-      Alert.alert('Error', 'There was an issue adding your event.');
-    }
+    } catch(e){console.error(e);Alert.alert('Error','Adding event');}
   };
 
-  return (
+  return(
     <SafeAreaView style={styles.container}>
       <View style={styles.buttonContainer}>
-        <Button title="Switch to Calendar View" onPress={switchToCalendarView} color="#205a35" />
-        <Button title="Switch to Agenda View" onPress={switchToAgendaView} />
+        <CustomButton title="Calendar View" onPress={switchToCalendarView} />
+        <CustomButton title="Agenda View" onPress={switchToAgendaView} style={{backgroundColor:'#2196F3'}} />
       </View>
-
       {isCalendarView ? (
-        <Calendar
-          markedDates={markedDates}
-          onDayPress={(day) => {
-            setSelectedDate(day.dateString);
-            setIsCalendarView(false);
-          }}
-        />
-      ) : (
+        <Calendar markedDates={markedDates} onDayPress={d=>{setSelectedDate(d.dateString);setIsCalendarView(false);}} />
+      ):(
         <View style={styles.eventsContainer}>
           <Text style={styles.dateText}>{formatDateForAgendaView(selectedDate)}</Text>
           <View style={styles.navigationButtons}>
-            <Button title="Previous Day" onPress={() => navigateAgendaView(-1)} />
-            <Button title="Next Day" onPress={() => navigateAgendaView(1)} />
+            <CustomButton title="Previous" onPress={()=>navigateAgendaView(-1)} style={[styles.navButton,{backgroundColor:'#2196F3'}]} />
+            <CustomButton title="Next" onPress={()=>navigateAgendaView
+(1)} style={[styles.navButton,{backgroundColor:'#2196F3'}]} />
           </View>
           {renderCards()}
-          <TouchableOpacity style={styles.addEventButton} onPress={() => setModalVisible(true)}>
-            <Text style={styles.addEventText}>Add Event</Text>
-          </TouchableOpacity>
+          <CustomButton title="Add Event" onPress={()=>setModalVisible(true)} style={styles.addEventButton} />
         </View>
       )}
-
-      <Modal visible={modalVisible} animationType="slide">
+      <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalContainer}>
           <Text style={styles.modalTitle}>Add Event</Text>
+          <TextInput style={styles.eventinput} placeholder="Event Name" value={eventName} onChangeText={setEventName} />
           <View style={styles.datePicker}>
-            <TextInput style={styles.eventinput} placeholder="Event Name" value={eventName} onChangeText={setEventName} />
-            <TextInput style={styles.input} placeholder="Month" value={eventMonth} onChangeText={setEventMonth} />
-            <TextInput style={styles.input} placeholder="Day" value={eventDay} onChangeText={setEventDay} />
-            <TextInput style={styles.input} placeholder="Year" value={eventYear} onChangeText={setEventYear} />
+            <TextInput style={styles.input} placeholder="Month" value={eventMonth} onChangeText={setEventMonth} keyboardType="numeric" />
+            <TextInput style={styles.input} placeholder="Day" value={eventDay} onChangeText={setEventDay} keyboardType="numeric" />
+            <TextInput style={styles.input} placeholder="Year" value={eventYear} onChangeText={setEventYear} keyboardType="numeric" />
           </View>
           <View style={styles.timePicker}>
-            <TextInput style={[styles.input, styles.inputSmall]} placeholder="Hour" value={eventHour} onChangeText={setEventHour} />
-            <TextInput style={[styles.input, styles.inputSmall]} placeholder="Minute" value={eventMinute} onChangeText={setEventMinute} />
-            <Picker selectedValue={eventAMPM} onValueChange={setEventAMPM} style={styles.inputpicker}>
-              <Picker.Item label="AM" value="AM" />
-              <Picker.Item label="PM" value="PM" />
-            </Picker>
+  <TextInput style={[styles.input, styles.inputSmall]} placeholder="Hour" value={eventHour} onChangeText={setEventHour} keyboardType="numeric" />
+  <Text style={styles.colon}>:</Text>
+  <TextInput style={[styles.input, styles.inputSmall]} placeholder="Minute" value={eventMinute} onChangeText={setEventMinute} keyboardType="numeric" />
+  {Platform.OS === 'ios' ? (
+    <RNPickerSelect
+      items={[
+        { label: 'AM', value: 'AM', color: '#000' },
+        { label: 'PM', value: 'PM', color: '#000' }
+      ]}
+      value={eventAMPM}
+      onValueChange={setEventAMPM}
+      placeholder={{ label: 'AM/PM', value: '', color: '#000' }}
+      style={pickerSelectStyles}
+      useNativeAndroidPickerStyle={false}
+      Icon={() => (
+        <View style={styles.iconContainer}>
+          <Text style={styles.icon}>▾</Text>
+        </View>
+      )}
+    />
+  ) : (
+    <Picker selectedValue={eventAMPM} onValueChange={setEventAMPM} style={styles.inputpicker}>
+      <Picker.Item label="AM" value="AM" />
+      <Picker.Item label="PM" value="PM" />
+    </Picker>
+  )}
+</View>
+
+          <View style={styles.modalButtons}>
+            <CustomButton title="Add" onPress={addEvent} style={styles.addEvent} />
+            <CustomButton title="Cancel" onPress={()=>setModalVisible(false)} style={styles.cancelBtn} />
           </View>
-          <TouchableOpacity style={styles.addEvent} onPress={addEvent}>
-            <Text style={styles.addEventText}>Add Event</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.cancleBtn} onPress={() => setModalVisible(false)}>
-            <Text style={styles.addEventText}>Cancel</Text>
-          </TouchableOpacity>
         </View>
       </Modal>
       <View style={styles.homeButton}>
-                <Button title="Go Home" onPress={() => navigation.navigate("Home")} />
-              </View>
+        <CustomButton title="Go Home" onPress={()=>navigation.navigate('Home')} style={{backgroundColor:'#2196F3'}} />
+      </View>
     </SafeAreaView>
   );
 };
+const INPUT_HEIGHT = 50;
+const INPUT_BORDER_RADIUS = 8;
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F1E3', paddingTop: 40, paddingHorizontal: 20,},
-  buttonContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20,},
-  eventsContainer: { flex: 1,},
-  dateText: { fontSize: 24, fontWeight: 'bold',  marginBottom: 10,},
-  navigationButtons: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10,},
-  eventCard: { flexDirection: 'column', marginBottom: 15,  backgroundColor: '#F4F1E3',  borderRadius: 10,  padding: 10,  shadowColor: '#000',  shadowOffset: { width: 0, height: 1 },  shadowOpacity: 0.3, shadowRadius: 2,},
-  card: { padding: 10,},
-  eventTitle: { fontSize: 18, fontWeight: 'bold',},
-  eventImage: {  width: 100, height: 100, marginTop: 10,},
-  removeButton: { position: 'absolute', top: 10, right: 10,},
-  addEventButton: { backgroundColor: '#205a35', paddingVertical: 10, borderRadius: 5, marginVertical: 10, marginBottom: 20,},
-  addEventText: { color: 'white', textAlign: 'center', fontWeight: 'bold',},
-  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F4F1E3', padding: 20,},
-  modalTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 20,},
-  input: { borderWidth: 1, borderColor: '#ccc', backgroundColor: "#fff", padding: 10, marginBottom: 10, width: '80%',},
-  eventinput: { borderWidth: 1, borderColor: '#ccc', backgroundColor: "#fff", padding: 10, marginBottom: 10, width: '90%',},
-  datePicker: { borderWidth: 1, borderColor: '#ccc', padding: 10, marginBottom: 10, width: '100%',},
-  timePicker: { flexDirection: 'row', borderWidth: 1, borderColor: '#ccc', padding: 10, marginBottom: 10, width: '100%', justifyContent: 'space-between',},
-  inputSmall: { width: '30%',},
-  inputpicker: { height: 50, width: 105, alignSelf: 'center',},
-  cancleBtn: { backgroundColor: '#FF6347', paddingVertical: 10, borderRadius: 5, marginVertical: 10, width: 100,},
-  addEvent: { backgroundColor: '#205a35', paddingVertical: 10, borderRadius: 5, marginVertical: 10, width: 100,},
-  addEventText: { color: 'white', textAlign: 'center', fontWeight: 'bold',},
-  homeButton: { marginBottom: 15, alignSelf: "center", width: "50%",},
+const pickerSelectStyles = StyleSheet.create({
+  inputIOS: { fontSize:16,paddingVertical:12,paddingHorizontal:10,borderWidth:1,borderColor:'#ccc',borderRadius:4,color:'black',paddingRight:30,minWidth:100,textAlign:'center' },
+  inputAndroid: { fontSize:16,paddingHorizontal:10,paddingVertical:8,borderWidth:0.5,borderColor:'#ccc',borderRadius:8,color:'black',paddingRight:30,minWidth:100,textAlign:'center' }
 });
 
-export default CalendarApp
+const styles = StyleSheet.create({
+  container:{flex:1,backgroundColor:'#F4F1E3',paddingTop:40,paddingHorizontal:20},
+  buttonContainer:{flexDirection:'row',justifyContent:'space-between',marginBottom:20},
+  customButton:{backgroundColor:'#205a35',paddingVertical:10,paddingHorizontal:15,borderRadius:5,alignItems:'center',margin:5},
+  customButtonText:{color:'#fff',fontWeight:'bold'},
+  navButton:{flex:1,marginHorizontal:5},
+  eventsContainer:{flex:1},
+  dateText:{fontSize:24,fontWeight:'bold',marginBottom:10},
+  navigationButtons:{flexDirection:'row',justifyContent:'space-between',marginBottom:10},
+  eventCard:{flexDirection:'column',marginBottom:15,backgroundColor:'#fff',borderRadius:10,padding:10,shadowColor:'#000',shadowOffset:{width:0,height:1},shadowOpacity:0.3,shadowRadius:2},
+  card:{padding:10},
+  eventTitle:{fontSize:18,fontWeight:'bold'},
+  eventImage:{width:100,height:100,marginTop:10},
+  removeButton:{position:'absolute',top:10,right:10},
+  addEventButton:{backgroundColor:'#205a35',paddingVertical:10,borderRadius:5,marginVertical:10},
+  modalContainer:{flex:1,justifyContent:'center',alignItems:'center',backgroundColor:'#F4F1E3',padding:20,margin:20,borderRadius:10},
+  modalTitle:{fontSize:24,fontWeight:'bold',marginBottom:20},
+  input: { borderWidth: 1, borderColor: '#ccc', backgroundColor: '#fff', padding: 14, marginBottom: 10, width: '80%', height: 40, fontSize: 18, borderRadius: 8, textAlign: 'center',},
+  eventinput:{borderWidth:1,borderColor:'#ccc',backgroundColor:'#fff',padding:10,marginBottom:10,width:'90%'},
+  datePicker:{marginBottom:10,alignItems:'center'},
+  timePicker:{flexDirection:'row',alignItems:'center',justifyContent:'space-around',width:'100%',marginBottom:10},
+  inputSmall: { width: '25%', height: 50, fontSize: 16, padding: 10, textAlign: 'center',},
+  inputpicker:{height:50,width:100},
+  modalButtons:{flexDirection:'row',justifyContent:'space-around',width:'100%'},
+  addEvent:{backgroundColor:'#205a35'},
+  cancelBtn:{backgroundColor:'#FF6347'},
+  homeButton:{marginTop:20,alignSelf:'center',width:'50%'},
+  iconContainer: { position: 'absolute', right: 8, top: 8, width: 24, height: 24, justifyContent: 'center',  alignItems: 'center',},
+  icon: { fontSize: 18, color: '#000',},
+  pickerAndroid: { height: 40, width: 90, borderColor: '#ccc', borderWidth: 1, borderRadius: 5,backgroundColor: '#fff', justifyContent: 'center', paddingHorizontal: 8, color: '#000', },
+});
+
+export default CalendarApp;
