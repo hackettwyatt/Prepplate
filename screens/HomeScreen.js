@@ -10,7 +10,7 @@ function HomeScreen() {
   const [userName, setUserName] = useState("User");
   const [greeting, setGreeting] = useState("Hello");
 
-  const greetings = [ "Hello","Hola", "Bonjour", "Ciao", "Hallo", "Olá","Hej","Salam","Namaste","Konnichiwa","Annyeong","Ni hao","Privet","Halo",  "Sawasdee",   "Selamat",    "Zdravo",     "Yassas",    "Merhaba","Shalom", "Habari","Hoi","Aloha","Sannu","Mabuhay",];
+  const greetings = [ "Hello","Hola", "Bonjour", "Ciao", "Hallo", "Olá","Hej","Salam","Namaste","Konnichiwa","Annyeonghaseyo","Ni hao","Privet","Halo",  "Sawasdee",   "Selamat",    "Zdravo",     "Yassas",    "Merhaba","Shalom", "Habari","Hoi","Aloha","Sannu","Mabuhay",];
 
   useEffect(() => {
     const fetchUserName = async () => {
